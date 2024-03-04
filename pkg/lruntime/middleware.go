@@ -1,9 +1,16 @@
 package lruntime
 
 import (
+	"context"
 	"log"
 	"net/http"
+
+	"github.com/google/uuid"
 )
+
+type contextKey string
+
+const requestIDContextKey contextKey = "requestID"
 
 type Middleware func(next http.HandlerFunc) http.HandlerFunc
 
@@ -18,6 +25,16 @@ func RegisterRuntimeMiddleware(middlewares []Middleware, handler http.HandlerFun
 	return RuntimeHandler
 }
 
+// RequestLogging logs basic information on all requests and adds a canonical request ID
+func RequestLogging(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestId := uuid.NewString()
+		r = r.WithContext(context.WithValue(r.Context(), requestIDContextKey, requestId))
+		log.Printf("[%s] %s RequestID: %s", r.Method, r.RequestURI, requestId)
+		next.ServeHTTP(w, r)
+	})
+}
+
 // PanicRecovery handles any panic errors that may occur gracefully
 func PanicRecovery(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,14 +45,6 @@ func PanicRecovery(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}()
 
-		next.ServeHTTP(w, r)
-	})
-}
-
-// SabaresuContext adds the context object Sabaresu will expose to Lua functions
-func SabaresuContext(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		SetSabaresu(r, "hi")
 		next.ServeHTTP(w, r)
 	})
 }

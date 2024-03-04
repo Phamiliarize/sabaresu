@@ -51,10 +51,42 @@ path = "/v1/test/{test}" # Path Parameter
 functions = ["auth.lua", "hello-world.lua"] # Function Chain
 ```
 
-#### The Function Chain
+### Functions
 
-You can chain functions in `sabaresu`. This is done by simply writing the functions in an array, in the order you want them to fire.
+You might notice above that we listed functions in an array- this is becase you can chain funtions in `sabaresu`. The runtme will fire your functions in order- allowing for an easy method to isolate each step of your application flow.
 
-Each function passes the sabaresu context object (which contains `request` and `response`) to the next function.
 
-This allows a very expressive an easy way to think about the "flow" of a given request and also isolate parts to make testing easier.
+#### I/O
+Every time your Lua function fires it is given the original `request` table- this is immutable between functions.
+
+Your function is expected to return a `response` table which is mutable between functions, and allows you to pass data forward and mutate the expected response. We can see how this works below:
+
+```lua
+function main(req, resp)
+    print(req.requestId)
+    print("Hello " .. req.getPathParam("name") .. "!")
+    return resp
+ end
+```
+
+After your final function runs the results of `response` will form your HTTP response.
+
+## Runtime API
+
+Every function is supplied a `request` and `response`. Some helper functions are also made available as part of our "runtime API".
+
+#### `request`
+| key | description |
+| ---- | ---- |
+| `requestId` | A unique `UUIDv4` per HTTP request |
+| `method` | HTTP Method |
+| `url` | The full URL string |
+| `path` | The path |
+| `host` | The host value |
+| `getPathParam("name")` | Takes the name of an URL parameter; returns value or empty string |
+
+
+#### `request`
+| key | description | default |
+| ---- | ---- | ---- |
+| `statusCode` | A number representing the HTTP Status Code | 200 |
