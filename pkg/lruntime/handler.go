@@ -1,12 +1,16 @@
 package lruntime
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"github.com/Phamiliarize/sabaresu/pkg/lruntime/util"
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
 )
+
+// TODO: Need to clean all this up and write tests/make it testable
 
 // RuntimeHandler generates a HandlerFunc from provided config
 func RuntimeHandler(functions []string) http.HandlerFunc {
@@ -16,13 +20,19 @@ func RuntimeHandler(functions []string) http.HandlerFunc {
 		L := lua.NewState()
 		defer L.Close()
 
+		reqBody, err := util.Body(r)
+		if err != nil {
+			panic(err)
+		}
+
 		lreq := MakeLRequest(L, Request{
-			RequestID:  r.Context().Value(requestIDContextKey).(string),
+			ID:         r.Context().Value(requestIDContextKey).(string),
 			Method:     r.Method,
 			URL:        r.URL,
 			Header:     r.Header,
 			Host:       r.Host,
 			gPathParam: r.PathValue,
+			Body:       reqBody,
 		})
 
 		lresp := MakeLResponse(L, Response{})
@@ -61,6 +71,15 @@ func RuntimeHandler(functions []string) http.HandlerFunc {
 			panic(err)
 		}
 
+		res, err := json.Marshal(resp.Body)
+		if err != nil {
+			// TODO: need to handle errors not panic on everything
+			panic(err)
+		}
+
 		w.WriteHeader(resp.StatusCode)
+		// Only JSON is supported right now
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(res)
 	})
 }

@@ -30,7 +30,7 @@ func RequestLogging(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestId := uuid.NewString()
 		r = r.WithContext(context.WithValue(r.Context(), requestIDContextKey, requestId))
-		log.Printf("[%s] %s RequestID: %s", r.Method, r.RequestURI, requestId)
+		log.Printf("[%s] %s Request ID: %s", r.Method, r.RequestURI, requestId)
 		next.ServeHTTP(w, r)
 	})
 }

@@ -11,10 +11,10 @@ method = "GET"
 path = "/v1/test/{name}"
 functions = ["hello-world.lua"]`)
 
-	d2 := []byte(`function main(req, resp)
-    print(req.requestId)
-    print("Hello " .. req.getPathParam("name") .. "!")
-    return resp
+	d2 := []byte(`function main(request, response)
+    print(request.id)
+    print("Hello " .. request.getPathParam("name") .. "!")
+    return response
  end`)
 
 	if err := os.WriteFile("./gateway.toml", d1, 0644); err != nil {

@@ -37,6 +37,8 @@ Run your server:
 
 
 ### `gateway.toml`
+> Currently **only JSON** apis are is supported.
+
 Functions are exposed over HTTP; you choose how and what to expose via `gateway.toml`, which follows a simple mental model:
 
 ```toml
@@ -47,46 +49,52 @@ functions = ["hello-world.lua"]
 
 [[routes]]
 method = "GET"
-path = "/v1/test/{test}" # Path Parameter
-functions = ["auth.lua", "hello-world.lua"] # Function Chain
+path = "/v1/user/{test}" # Path Parameter
+functions = ["auth.lua", "hello-world.lua"] # Chaining functions auth -> hello-world
 ```
+
+Chaining can be a powerful ally to isolating your application logic. You can treat them like befor-hooks or after-hooks. Middlewares. Whatever it needs to be.
 
 ### Functions
 
-You might notice above that we listed functions in an array- this is becase you can chain funtions in `sabaresu`. The runtme will fire your functions in order- allowing for an easy method to isolate each step of your application flow.
-
-
-#### I/O
-Every time your Lua function fires it is given the original `request` table- this is immutable between functions.
-
-Your function is expected to return a `response` table which is mutable between functions, and allows you to pass data forward and mutate the expected response. We can see how this works below:
+A sabaresu function must have define a `main` function that recieves two parameters, `request` & `response`. For example:
 
 ```lua
-function main(req, resp)
-    print(req.requestId)
-    print("Hello " .. req.getPathParam("name") .. "!")
+function main(request, response)
+    print(request.id)
+    print("Hello " .. request.getPathParam("name") .. "!")
     return resp
  end
 ```
 
-After your final function runs the results of `response` will form your HTTP response.
+
+#### request
+`request` is a table that describes the original HTTP request recieved by the gateway.  Immutable between requests.
+
+| key | type | description |
+| ---- | ---- | ---- |
+| `id` | string | A unique `UUIDv4` for the the request |
+| `method` | string | The HTTP Method of the request |
+| `headers` | table[string][]string | A table of headers on the request |
+| `url` | string | The full URL|
+| `host` | string | The host value |
+| `path` | string | The request path |
+| `getPathParam ` | function(name string) string or nil | Retrieves a path parameter by name |
+| `queryParams` | table[string][]string | A table of query params on the request |
+
+
+#### response
+`response` is a table that defines how the final response will be sent after the last function is run. It is mutable between functions.
+
+| key | type | description | default |
+| ---- | ---- | ---- |  ---- |
+| `statusCode` | number | HTTP Status Code | 200 |
+| `headers` | table[string][]string | Headers to set on response | {} |
+| `payload` | table[string]any | A private payload to pass info between functions| {}
+| `body` | table[string]any | The response body that will be serialized | {} |
+
 
 ## Runtime API
 
-Every function is supplied a `request` and `response`. Some helper functions are also made available as part of our "runtime API".
+In addition to request handling basics, some helpers and go bindings are also globaly available for usage.
 
-#### `request`
-| key | description |
-| ---- | ---- |
-| `requestId` | A unique `UUIDv4` per HTTP request |
-| `method` | HTTP Method |
-| `url` | The full URL string |
-| `path` | The path |
-| `host` | The host value |
-| `getPathParam("name")` | Takes the name of an URL parameter; returns value or empty string |
-
-
-#### `request`
-| key | description | default |
-| ---- | ---- | ---- |
-| `statusCode` | A number representing the HTTP Status Code | 200 |
