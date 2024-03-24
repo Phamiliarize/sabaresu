@@ -18,8 +18,9 @@ type Middleware func(next http.HandlerFunc) http.HandlerFunc
 func RegisterRuntimeMiddleware(middlewares []Middleware, handler http.HandlerFunc) http.HandlerFunc {
 	RuntimeHandler := handler
 
-	for _, middleware := range middlewares {
-		RuntimeHandler = middleware(RuntimeHandler)
+	// We need to reverse back the "human" order because of how wrapping functions works
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		RuntimeHandler = middlewares[i](RuntimeHandler)
 	}
 
 	return RuntimeHandler
@@ -32,6 +33,22 @@ func RequestLogging(next http.HandlerFunc) http.HandlerFunc {
 		r = r.WithContext(context.WithValue(r.Context(), RequestIDContextKey, requestId))
 		log.Printf("[%s] %s Request ID: %s", r.Method, r.RequestURI, requestId)
 		next.ServeHTTP(w, r)
+	})
+}
+
+// RequestValidator validates the incoming request against a schema
+func RequestValidator(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Do Stuff
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ResponseSweeper builds response against the schema
+func ResponseSweeper(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		// Do stuff
 	})
 }
 

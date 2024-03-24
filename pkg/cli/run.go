@@ -16,7 +16,7 @@ func Run(cfgPath *string, schemaPath *string, port *int) {
 
 	mux := http.NewServeMux()
 
-	middleware := []gw.Middleware{gw.PanicRecovery, gw.RequestLogging}
+	middleware := []gw.Middleware{gw.PanicRecovery, gw.RequestLogging, gw.RequestValidator, gw.ResponseSweeper}
 
 	luaRuntime := lua.NewLuaRuntime()
 
