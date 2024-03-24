@@ -1,22 +1,24 @@
-package lruntime
+package lua
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
 
-	"github.com/Phamiliarize/sabaresu/pkg/lruntime/util"
+	"github.com/Phamiliarize/sabaresu/pkg/gateway"
+	"github.com/Phamiliarize/sabaresu/pkg/runtime/lua/util"
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
 )
 
-// TODO: Need to clean all this up and write tests/make it testable
+type luaRuntime struct{}
 
-// RuntimeHandler generates a HandlerFunc from provided config
-func RuntimeHandler(functions []string) http.HandlerFunc {
-	middleware := []Middleware{PanicRecovery, RequestLogging}
+func NewLuaRuntime() *luaRuntime {
+	return &luaRuntime{}
+}
 
-	return RegisterRuntimeMiddleware(middleware, func(w http.ResponseWriter, r *http.Request) {
+func (l *luaRuntime) RuntimeHandler(funcDir string, functions []string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		L := lua.NewState()
 		defer L.Close()
 
@@ -26,7 +28,7 @@ func RuntimeHandler(functions []string) http.HandlerFunc {
 		}
 
 		lreq := MakeLRequest(L, Request{
-			ID:         r.Context().Value(requestIDContextKey).(string),
+			ID:         r.Context().Value(gateway.RequestIDContextKey).(string),
 			Method:     r.Method,
 			URL:        r.URL,
 			Header:     r.Header,
@@ -45,7 +47,7 @@ func RuntimeHandler(functions []string) http.HandlerFunc {
 				L.Pop(1)
 			}
 
-			filePath := fmt.Sprintf("./functions/%s", function)
+			filePath := fmt.Sprintf("%s/%s", funcDir, function)
 
 			if err := L.DoFile(filePath); err != nil {
 				panic(err)
@@ -81,5 +83,5 @@ func RuntimeHandler(functions []string) http.HandlerFunc {
 		// Only JSON is supported right now
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(res)
-	})
+	}
 }

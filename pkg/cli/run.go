@@ -4,22 +4,28 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Phamiliarize/sabaresu/pkg/configuration"
-	"github.com/Phamiliarize/sabaresu/pkg/lruntime"
+	gw "github.com/Phamiliarize/sabaresu/pkg/gateway"
+	"github.com/Phamiliarize/sabaresu/pkg/runtime/lua"
 )
 
-func Run() {
-	// Load Configuration
-	routes, err := configuration.LoadGatewayConfiguration()
+func Run(cfgPath *string, schemaPath *string, port *int) {
+	gateway, err := gw.NewGatewayFromCfg(cfgPath, schemaPath)
 	if err != nil {
 		panic(err)
 	}
 
 	mux := http.NewServeMux()
 
-	for _, r := range *routes {
-		mux.HandleFunc(fmt.Sprintf("%s %s", r.Method, r.Path), lruntime.RuntimeHandler(r.Functions))
+	middleware := []gw.Middleware{gw.PanicRecovery, gw.RequestLogging}
+
+	luaRuntime := lua.NewLuaRuntime()
+
+	for _, r := range gateway.Routes {
+		mux.HandleFunc(
+			fmt.Sprintf("%s %s", r.Method, r.Path),
+			gw.RegisterRuntimeMiddleware(middleware, luaRuntime.RuntimeHandler(r.FuncDir, r.Functions)),
+		)
 	}
 
-	http.ListenAndServe(":3000", mux)
+	http.ListenAndServe(fmt.Sprintf(":%d", *port), mux)
 }

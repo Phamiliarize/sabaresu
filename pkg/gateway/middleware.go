@@ -1,4 +1,4 @@
-package lruntime
+package gateway
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 type contextKey string
 
-const requestIDContextKey contextKey = "requestID"
+const RequestIDContextKey contextKey = "requestID"
 
 type Middleware func(next http.HandlerFunc) http.HandlerFunc
 
@@ -29,7 +29,7 @@ func RegisterRuntimeMiddleware(middlewares []Middleware, handler http.HandlerFun
 func RequestLogging(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestId := uuid.NewString()
-		r = r.WithContext(context.WithValue(r.Context(), requestIDContextKey, requestId))
+		r = r.WithContext(context.WithValue(r.Context(), RequestIDContextKey, requestId))
 		log.Printf("[%s] %s Request ID: %s", r.Method, r.RequestURI, requestId)
 		next.ServeHTTP(w, r)
 	})
