@@ -1,45 +1,57 @@
 # 🐟 sabaresu (WIP)
-No mackerels needed. Or was it servers!?
+No mackerels needed. Bad puns withstanding, sabaresu is a "serverless framework" proof of concept.
 
-### Okay what is it really? Why?
-sabaresu is a "toy" serverless framework built from my love for the DX of serverles but my desire to not be stuck to some FaaS platform.
 
-Short-Term Goals:
-- Scale easy: deploys like any other containerized-GoLang Web App
-- Wizard DX:
-    - Up and running in < 1 Minute
-    - Easy to test functions
+### But why?
+I love the DX of serverless but I'm not a fan of vendor lock-in and the financial implications for the small/hobby projects I often want to use it in.
 
-Moonshot Goals:
-- Complex Function Deployments
-    - Blue-Green
-    - Canary
-    - Hot-Changes
-- No Fail Mode: auto fail deployment attempts if a function fails a test
+Under the hood, `sabaresu` is just a Go web application that routes HTTP requests to a chain of [Lua](https://www.lua.org/) functions which pass along a response object.
 
+![](sabaresu.png)
+
+You can quickly deploy it like any other horizontally-scaled containerized application; but then change functions on the fly as needed.
+
+
+### Features
+- Simple DX
+  - Up and running in < 1 Minute
+  - Schema based validation ensures you get the right input
+  - Schema based sweeping ensures you send the right output
+  - Powerful function chaining concept allows you to divide out business logic work flows.
+- Easily scaled; works like any other containerized GoLang Web App
+
+
+TODO:
+- Full hot deployments (only functions are HOT atm)
+- Deployment Strategies ?? / support deploy strategies for new functions Canary/Blue-Green ?
+  - Probably just versioning is better
+- Easy function testing/simulation
 
 ## Getting Started
-Build `sabaresu`:
-```shell
-go build -o tmp/sabaresu cmd/sabaresu/main.go
-```
-
-Initialize a new project:
+Initialize a new project template to a `tmp` folder:
 ```shell
 cd tmp && ./sabaresu init
 ```
 
+Build `sabaresu` binary:
+```shell
+go build -o tmp/sabaresu cmd/sabaresu/main.go
+```
+
 Run your server:
 ```shell
-./sabaresu run
+./tmp/sabaresu run
+```
+
+Optional Params:
+```shell
+./sabaresu run --cfg="./file.toml" --port="./functions"
 ```
 
 
-
 ### `gateway.toml`
-> Currently **only JSON** apis are is supported.
 
-Functions are exposed over HTTP; you choose how and what to expose via `gateway.toml`, which follows a simple mental model:
+sabaresu exposes functions over HTTP as defined in your `gateway.toml`. The gateway confiugration follows a simple mental model:
 
 ```toml
 [[routes]]
@@ -49,11 +61,48 @@ functions = ["hello-world.lua"]
 
 [[routes]]
 method = "GET"
-path = "/v1/user/{test}" # Path Parameter
-functions = ["auth.lua", "hello-world.lua"] # Chaining functions auth -> hello-world
+path = "/v1/user/{test}" # Path with Parameter
+functions = ["auth.lua", "hello-world.lua"] # Chained functions
 ```
 
-Chaining can be a powerful ally to isolating your application logic. You can treat them like befor-hooks or after-hooks. Middlewares. Whatever it needs to be.
+Chaining is an expressive way to isolate parts of your application logic while also providing a "middleware" like experience.
+
+For example, we can always run `auth.lua` first on requests. If it fails we can abort the request early. If it succeeds we can pass some auth state or context to the next function.
+
+
+### Schema
+`sabaresu` utilizes schema written in TOML to define the request life cycle and even the expected output.
+
+This allows you to validate user input and also sweep your output- a term we've coined to mean cleaning your output of anything not defined, preventing accidental leaks. `sabaresu` will sweep any unexpected output under the rug before it makes it out of your service.
+
+This looks like:
+
+```toml
+[path] # Validation of path params
+enterprise_id = "string,required,uuid"
+
+[query] # Validation of query params
+limit = "number,int"
+
+[body] # Validation of request body
+name = "string,required,min=1,max=128"
+
+[body.org_info]
+id = "string,required,uuid"
+name = "string,required,min=1,max=128"
+
+[response] # Definition of the response
+id = "string,required,uuid"
+enterprise_id = "string,required,uuid"
+name = "string,required,min=1,max=128"
+
+[response.org_info]
+id = "string,required,uuid"
+name = "string,required,min=1,max=128"
+```
+
+You can set a schema on any endpoint to take advantage of validation and sweeping.
+
 
 ### Functions
 
